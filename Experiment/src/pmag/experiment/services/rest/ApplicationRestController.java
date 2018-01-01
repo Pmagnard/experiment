@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -24,27 +25,42 @@ import pmag.experiment.services.ServiceException;
 
 @RestController
 public class ApplicationRestController {
-	//TODO Read, learn and implement error handling properly
 	Logger logger = LoggerFactory.getLogger(getClass());
-	
-	@Autowired
-	private DebugService debugService;
-	
+
 	@Autowired
 	private FileContentService fileContentService;
-	
-	@GetMapping("/hello")
-	public String getHello() {
-		return debugService.run("Hello");
 
+	@GetMapping("/hello")
+	public String getHello() throws ServiceException {
+		return "Hello";
 	}
 	
-	@PostMapping("/multi") 
-	public FileInfo postMulti(MultipartHttpServletRequest multipartRequest) throws IOException, ServiceException {
+	@ExceptionHandler(ServiceException.class)
+	public String handleServiceException(ServiceException e) {
+		//TODO return a bean of type Error
+		/*Error error = null;		
+		if (e != null) {
+			error = new Error();
+			error.addObject("message", e.getMessage());
+			error.addObject("exception",e);
+		}
+		return error;*/
+		return e.getMessage();
+	}
+	
+	@GetMapping("/error")
+	public String getError() throws ServiceException {
+		throw new ServiceException("Test error handling!");
+	}
+
+	@PostMapping("/multi")
+	public FileInfo postMulti(MultipartHttpServletRequest multipartRequest) throws ServiceException {
+
 		FileInfo fileInfo = null;
 		logger.debug("Processing POST request on /multi");
+
 		if (multipartRequest != null) {
-			//reading parameters
+			// reading parameters
 			Map<String, String[]> parameterMap = multipartRequest.getParameterMap();
 			if (parameterMap != null && !parameterMap.isEmpty()) {
 				for (String paramName : parameterMap.keySet()) {
@@ -52,7 +68,7 @@ public class ApplicationRestController {
 					logger.debug("Parameter " + paramName + " = " + paramValue);
 				}
 			}
-			//reading multipart files
+			// reading multipart files
 			MultiValueMap<String, MultipartFile> multiFileMap = multipartRequest.getMultiFileMap();
 			if (multiFileMap != null && !multiFileMap.isEmpty()) {
 				for (String multiFileName : multiFileMap.keySet()) {
@@ -63,13 +79,19 @@ public class ApplicationRestController {
 							String name = multipartFile.getName();
 							long size = multipartFile.getSize();
 							if (size != 0) {
-							logger.debug("Parameter " + multiFileName + " is a file with name " + name + " (original name is " + originalName + ") and size is " + size);
-							fileInfo = new FileInfo();
-							fileInfo.setName(name);
-							fileInfo.setSize(size);
-							InputStream stream = multipartFile.getInputStream();
-							TextContent textContent = fileContentService.extractContent(stream);
-							fileInfo.setTextContent(textContent);
+								logger.debug("Parameter " + multiFileName + " is a file with name " + name
+										+ " (original name is " + originalName + ") and size is " + size);
+								fileInfo = new FileInfo();
+								fileInfo.setName(name);
+								fileInfo.setSize(size);
+								InputStream stream;
+								try {
+									stream = multipartFile.getInputStream();
+								} catch (IOException e) {
+									throw new ServiceException(e);
+								}
+								TextContent textContent = fileContentService.extractContent(stream);
+								fileInfo.setTextContent(textContent);
 							} else {
 								logger.debug("File parameter " + multiFileName + " has not been set or is empty");
 							}
