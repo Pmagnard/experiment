@@ -34,20 +34,7 @@ public class ApplicationRestController {
 	public String getHello() throws ServiceException {
 		return "Hello";
 	}
-	
-	@ExceptionHandler(ServiceException.class)
-	public String handleServiceException(ServiceException e) {
-		//TODO return a bean of type Error
-		/*Error error = null;		
-		if (e != null) {
-			error = new Error();
-			error.addObject("message", e.getMessage());
-			error.addObject("exception",e);
-		}
-		return error;*/
-		return e.getMessage();
-	}
-	
+		
 	@GetMapping("/error")
 	public String getError() throws ServiceException {
 		throw new ServiceException("Test error handling!");
